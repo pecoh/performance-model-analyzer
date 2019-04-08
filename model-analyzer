@@ -74,6 +74,10 @@ class AbstractResource:
 		if hasattr(self, "resourceObjects"):
 			self.resourceObjects.append(concrete)
 
+	def hasConcrete(self):
+		"""Check if there are any ResourceObjects connected to this abstract resource."""
+		return swallowExceptions(lambda: len(self.resourceObjects))
+
 	def printTree(self, indentation = 0):
 		"""For debugging purposes, only."""
 		print("{")
@@ -91,6 +95,26 @@ class AbstractResource:
 				self.paths[name].printTree(indentation)
 		indentation -= 1
 		print("\t"*indentation + "}")
+
+def resolvePath(root: ResourceObject or AbstractResource, path: list) -> ResourceObject or AbstractResource:
+	for i in range(len(path)):
+		root = swallowExceptions(lambda: root.paths[path[i]])
+	return root
+
+def relativatePath(referencePath: list, absolutePath: list) -> list:
+	prefixLength = 0
+	suffixLength = len(referencePath)
+	for i in range(suffixLength):
+		if not swallowExceptions(lambda: referencePath[i] == absolutePath[i]):
+			break
+		prefixLength += 1
+		suffixLength -= 1
+	return [".." for i in range(suffixLength)] + absolutePath[prefixLength:]
+
+assert relativatePath(["foo", "bar", "baz"], ["bim"]) == ["..", "..", "..", "bim"]
+assert relativatePath(["foo", "bar", "baz"], ["foo", "bim"]) == ["..", "..", "bim"]
+assert relativatePath(["foo", "bar", "baz"], ["foo", "bar", "bim"]) == ["..", "bim"]
+assert relativatePath(["foo", "bar", "baz"], ["foo", "bar", "baz", "bim"]) == ["bim"]
 
 class Model:
 	def __init__(self, files):
@@ -127,13 +151,27 @@ class Model:
 		#Build the DAG of concrete resource objects, this adds a "resource objects" entry to the timeshared resources,
 		#which is an array of resource description dictionaries.
 		self.resources = self.createResourceObjects(self.resources, AbstractResource(None), ResourceObject(None))
-		self.resources.printTree()
+		#self.resources.printTree()
 
-		#single out the timeshared resources
-		#...
+		#Scan the job descriptions for paths to timeshared resources, and make all other resource paths relative to those.
+		for name in self.definitions:
+			resourceList = swallowExceptions(lambda: self.definitions[name]["resources"])
+			if not resourceList: sys.exit("error: job definition '" + name + "' does not require any resources")
+			timesharedIndices = [i for i in range(len(resourceList)) if swallowExceptions(lambda: resolvePath(self.resources, resourceList[i]["path"]).hasConcrete())]
+			if len(timesharedIndices) != 1:
+				print("error: job definition '" + name + "' does not name exactly one timeshared resource")
+				print("found %d paths to timeshared resources:"%len(timesharedIndices))
+				for i in timesharedIndices:
+					print("\t" + "/".join(resourceList[i]["path"]))
+				sys.exit("exiting due to fatal error")
+			timesharedIndex = timesharedIndices[0]
 
-		#and make the other resource paths relative to the timeshared ones
-		#...
+			#Remove the timeshared resource from the list of resources, and make the remaining resource paths relative to the timeshared resource.
+			referencePath = resourceList[timesharedIndex]["path"]
+			self.definitions[name]["timeshared resource"] = resourceList[timesharedIndex]
+			del resourceList[timesharedIndex]
+			for i in range(len(resourceList)):
+				resourceList[i]["path"] = relativatePath(referencePath, resourceList[i]["path"])
 
 	def createResourceObjects(self, resources: dict, abstractParent, concreteParent):
 		"""Build a DAG of resource objects, each resource object being a dictionary that contains subresources and/or a parent resource ("..").

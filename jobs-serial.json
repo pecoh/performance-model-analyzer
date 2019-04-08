@@ -1,0 +1,9 @@
+{
+	"jobs": {
+		"step 1": { "name": "load input" },
+		"step 2": { "name": "decompress", "require": [ "step 1" ]},
+		"step 3": { "name": "decode", "require": [ "step 2" ]},
+		"step 4": { "name": "encode", "require": [ "step 3" ]},
+		"step 5": { "name": "write output", "require": [ "step 4" ]}
+	}
+}

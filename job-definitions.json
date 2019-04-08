@@ -1,0 +1,72 @@
+{
+	"job definitions": {
+		"load input": {
+			"resources": [
+				{ "path": ["filesystem"], "require": 100e6},
+				{ "path": ["network"], "require": 100e6},
+				{ "path": ["CPU", "memory bus"], "require": 300e6},
+				{ "path": ["CPU", "LL Cache"], "require": 300e6},
+				{ "path": ["CPU", "core", "L1 Cache"], "require": 300e6},
+				{ "path": ["CPU", "core", "thread", "processing"], "require": 50e6}
+			]
+		},
+		"decompress": {
+			"resources": [
+				{ "path": ["CPU", "memory bus"], "require": 300e6},
+				{ "path": ["CPU", "LL Cache"], "require": 300e6},
+				{ "path": ["CPU", "core", "L1 Cache"], "require": 3e9},
+				{ "path": ["CPU", "core", "thread", "processing"], "require": 3e9}
+			]
+		},
+		"decode": {
+			"resources": [
+				{ "path": ["CPU", "memory bus"], "require": 1e9},
+				{ "path": ["CPU", "LL Cache"], "require": 1e9},
+				{ "path": ["CPU", "core", "L1 Cache"], "require": 1e9},
+				{ "path": ["CPU", "core", "thread", "processing"], "require": 600e6}
+			]
+		},
+		"encode": {
+			"resources": [
+				{ "path": ["CPU", "memory bus"], "require": 1e9},
+				{ "path": ["CPU", "LL Cache"], "require": 1e9},
+				{ "path": ["CPU", "core", "L1 Cache"], "require": 1e9},
+				{ "path": ["CPU", "core", "thread", "processing"], "require": 600e6}
+			]
+		},
+		"write output": {
+			"resources": [
+				{ "path": ["filesystem"], "require": 200e6},
+				{ "path": ["network"], "require": 200e6},
+				{ "path": ["CPU", "memory bus"], "require": 600e6},
+				{ "path": ["CPU", "LL Cache"], "require": 600e6},
+				{ "path": ["CPU", "core", "L1 Cache"], "require": 600e6},
+				{ "path": ["CPU", "core", "thread", "processing"], "require": 100e6}
+			]
+		},
+		"copy compressed": {
+			"resources": [
+				{ "path": ["CPU", "memory bus"], "require": 200e6},
+				{ "path": ["CPU", "LL Cache"], "require": 200e6},
+				{ "path": ["CPU", "core", "L1 Cache"], "require": 200e6},
+				{ "path": ["CPU", "core", "thread", "processing"], "require": 50e6}
+			]
+		},
+		"copy encoded": {
+			"resources": [
+				{ "path": ["CPU", "memory bus"], "require": 400e6},
+				{ "path": ["CPU", "LL Cache"], "require": 400e6},
+				{ "path": ["CPU", "core", "L1 Cache"], "require": 400e6},
+				{ "path": ["CPU", "core", "thread", "processing"], "require": 100e6}
+			]
+		},
+		"copy expanded": {
+			"resources": [
+				{ "path": ["CPU", "memory bus"], "require": 1.6e9},
+				{ "path": ["CPU", "LL Cache"], "require": 1.6e9},
+				{ "path": ["CPU", "core", "L1 Cache"], "require": 1.6e9},
+				{ "path": ["CPU", "core", "thread", "processing"], "require": 400e6}
+			]
+		}
+	}
+}

@@ -1,0 +1,172 @@
+#! /usr/bin/env python3
+
+import argparse
+import json
+import sys
+
+def parseArgs():
+	"""Define the options of the model-analyzes, parse the command line, and return the options object."""
+	optionsParser = argparse.ArgumentParser()
+	optionsParser.add_argument('files', type=argparse.FileType('r'), nargs='+', help="one or more files describing the jobs and machine model")
+
+	return optionsParser.parse_args()
+
+def throws(code) -> bool:
+	"""Turn an exception into a boolean.
+
+	code should be some lambda that doesn't take arguments."""
+	try:
+		code()
+		return False
+	except:
+		return True
+
+def swallowExceptions(code):
+	"""Execute possibly throwing code, and either return its result or None."""
+	try:
+		return code()
+	except:
+		return None
+
+class ResourceObject:
+	"""A simple data object that contains the variables throughput, availableThroughput, timeshared, and paths.
+	throughput is the capacity of the resource, availableThroughput is the amount of it that is not already committed to a job.
+	timeshared has the same meaning as the flag in the data model, and is always present.
+	paths is a dictionary of child resources, which may also contain a ".." entry for the parent resource.
+	Subresources are only reachable from their parent if they have a multiplicity of 1."""
+	def __init__(self, resourceDescription: dict, parent = None, subresourceName = None):
+		self.throughput = swallowExceptions(lambda: resourceDescription["throughput"])
+		self.timeshared = swallowExceptions(lambda: resourceDescription["timeshared"]) or False
+		self.paths = dict()
+		if parent:
+			self.paths[".."] = parent
+			if not swallowExceptions(lambda: resourceDescription["multiplicity"] != 1):
+				parent.paths[subresourceName] = self
+
+	def printTree(self, indentation = 0, caller = None):
+		"""For debugging purposes, only."""
+		print("{")
+		indentation += 1
+		for name in self.paths:
+			print("\t"*indentation + name + ": ", end="")
+			if self.paths[name] == caller:
+				print("...")
+			else:
+				self.paths[name].printTree(indentation, self)
+		indentation -= 1
+		print("\t"*indentation + "}")
+
+class AbstractResource:
+	"""A simple data object that provides a means to parse a path to the ResourceObjects.
+	Unlike ResourceObject, these do not store throughputs,
+	abstract subresources are always reachable from their parent,
+	and the timeshared ones provide a list of resourceObjects, which must be filled by the caller."""
+	def __init__(self, resourceDescription: dict, parent = None, subresourceName = None):
+		if swallowExceptions(lambda: resourceDescription["timeshared"]):
+			self.resourceObjects = list()
+		self.paths = dict()
+		if parent:
+			self.paths[".."] = parent
+			parent.paths[subresourceName] = self
+
+	def addConcrete(self, concrete: ResourceObject):
+		"""Noop if the resource is not timeshared."""
+		if hasattr(self, "resourceObjects"):
+			self.resourceObjects.append(concrete)
+
+	def printTree(self, indentation = 0):
+		"""For debugging purposes, only."""
+		print("{")
+		indentation += 1
+		if hasattr(self, "resourceObjects"):
+			print("\t"*indentation + "%d concrete resources: "%len(self.resourceObjects), end="")
+			self.resourceObjects[0].printTree(indentation)
+		else:
+			print("\t"*indentation + "no concrete resources")
+		for name in self.paths:
+			if name == "..":
+				print("\t"*indentation + name)
+			else:
+				print("\t"*indentation + name + ": ", end="")
+				self.paths[name].printTree(indentation)
+		indentation -= 1
+		print("\t"*indentation + "}")
+
+class Model:
+	def __init__(self, files):
+		#read the files
+		modelDescription = dict()
+		for f in files:
+			modelDescription.update(json.load(f))
+
+		#check for completeness
+		if throws(lambda: modelDescription["resources"]):
+			sys.exit("error: no resources defined")
+		if throws(lambda: modelDescription["job definitions"]):
+			sys.exit("error: no job descriptions defined")
+		if throws(lambda: modelDescription["jobs"]):
+			sys.exit("error: no jobs found")
+		self.resources = modelDescription["resources"]
+		self.definitions = modelDescription["job definitions"]
+		self.jobs = modelDescription["jobs"]
+
+		#add progress vars to the jobs
+		for key in self.jobs:
+			self.jobs[key]["progress"] = 0.0
+			self.jobs[key]["done"] = False
+
+		#sort the jobs into executable and waiting jobs
+		self.executableJobs = dict()
+		self.waitingJobs = dict()
+		for key in self.jobs:
+			if swallowExceptions(lambda: len(self.jobs[key]["require"])):
+				self.waitingJobs.update({key: self.jobs[key]});
+			else:
+				self.executableJobs.update({key: self.jobs[key]});
+
+		#Build the DAG of concrete resource objects, this adds a "resource objects" entry to the timeshared resources,
+		#which is an array of resource description dictionaries.
+		self.resources = self.createResourceObjects(self.resources, AbstractResource(None), ResourceObject(None))
+		self.resources.printTree()
+
+		#single out the timeshared resources
+		#...
+
+		#and make the other resource paths relative to the timeshared ones
+		#...
+
+	def createResourceObjects(self, resources: dict, abstractParent, concreteParent):
+		"""Build a DAG of resource objects, each resource object being a dictionary that contains subresources and/or a parent resource ("..").
+
+		For real resources, the dictionary object also contains a data member `.throughput`.
+		For each resource with a multiplicity, several equal resource objects will be created.
+		For each timeshared resource, a list of the associated resource objects is created and stored under the key "resource objects"."""
+		for name in resources:
+			curResource = resources[name]
+			multiplicity = swallowExceptions(lambda: curResource["multiplicity"]) or 1
+			timeshared = swallowExceptions(lambda: curResource["timeshared"]) or False
+			subresources = swallowExceptions(lambda: curResource["resources"]) or None
+			isResource = not throws(lambda: curResource["throughput"])
+
+			abstractChild = swallowExceptions(lambda: abstractParent.paths[name])	#don't create abstract resources twice
+			if not abstractChild: abstractChild = AbstractResource(curResource, abstractParent, name)
+
+			for i in range(multiplicity):
+				concreteChild = ResourceObject(curResource, concreteParent, name)
+				abstractChild.addConcrete(concreteChild)
+				if subresources:
+					self.createResourceObjects(subresources, abstractChild, concreteChild)
+
+		return abstractParent
+
+	def assignResources(self, jobs: dict) -> dict:
+		"""For each job, assign a key "speed" which indicates how much progress the job has per second.
+
+		Returns the given dictionary with the updated jobs."""
+
+
+def main():
+	options = parseArgs()
+	model = Model(options.files)
+
+main()

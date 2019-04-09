@@ -36,6 +36,7 @@ class ResourceObject:
 	Subresources are only reachable from their parent if they have a multiplicity of 1."""
 	def __init__(self, resourceDescription: dict, parent = None, subresourceName = None):
 		self.throughput = swallowExceptions(lambda: resourceDescription["throughput"])
+		self.availableThroughput = self.throughput
 		self.timeshared = swallowExceptions(lambda: resourceDescription["timeshared"]) or False
 		self.paths = dict()
 		if parent:
@@ -200,11 +201,41 @@ class Model:
 	def assignResources(self, jobs: dict) -> dict:
 		"""For each job, assign a key "speed" which indicates how much progress the job has per second.
 
-		Returns the given dictionary with the updated jobs."""
+		Returns the given dictionary with the updated jobs.
+		Current implementation uses a quite daft, naive greedy algorithm."""
+		for name in jobs:
+			job = jobs[name]
+			definition = self.definitions[job["name"]]
 
+			#select an instance of the timeshared resource
+			abstractTimesharedResource = resolvePath(self.resources, definition["timeshared resource"]["path"])
+			allocationIndex, curThroughput = 0, -1
+			for i in range(len(abstractTimesharedResource.resourceObjects)):
+				if abstractTimesharedResource.resourceObjects[i].availableThroughput > curThroughput:
+					allocationIndex, curThroughput = i, abstractTimesharedResource.resourceObjects[i].availableThroughput
+			concreteTimesharedResource = abstractTimesharedResource.resourceObjects[i]
+
+			#determine speed of this job
+			job["speed"] = concreteTimesharedResource.availableThroughput / definition["timeshared resource"]["require"]
+			for curRequest in definition["resources"]:
+				job["speed"] = min(job["speed"], resolvePath(concreteTimesharedResource, curRequest["path"]).availableThroughput / curRequest["require"])
+
+			#allocate the resources
+			concreteTimesharedResource.availableThroughput = 0	#model busy waiting
+			for curRequest in definition["resources"]:
+				resolvePath(concreteTimesharedResource, curRequest["path"]).availableThroughput = job["speed"]*curRequest["require"]
+
+			#debug output
+			print("executing job '" + job["name"] + "' at speed %d"%job["speed"])
+
+		return jobs
+
+	def simulateStep(self):
+		self.assignResources(self.executableJobs)
 
 def main():
 	options = parseArgs()
 	model = Model(options.files)
+	model.simulateStep()
 
 main()

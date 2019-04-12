@@ -29,6 +29,26 @@ def swallowExceptions(code):
 	except:
 		return None
 
+def div(a: float, b: float) -> float:
+	"""Implement correct division without throwing exceptions."""
+	try:
+		return a/b
+	except:
+		return a*math.copysign(math.inf, b)
+
+assert div(1e-300, 1e-300) == 1
+assert div(1e-300, -1e-300) == -1
+assert div(-1e-300, 1e-300) == -1
+assert div(-1e-300, -1e-300) == 1
+assert div(1, 0) > 1e300
+assert div(1, -0.0) < -1e300
+assert div(-1, 0) < -1e300
+assert div(-1, -0.0) > 1e300
+assert math.isnan(div(0, 0))
+assert math.isnan(div(0, -0.0))
+assert math.isnan(div(-0.0, 0))
+assert math.isnan(div(-0.0, -0.0))
+
 class ResourceObject:
 	"""A simple data object that contains the variables throughput, availableThroughput, timeshared, and paths.
 	throughput is the capacity of the resource, availableThroughput is the amount of it that is not already committed to a job.
@@ -218,9 +238,10 @@ class Model:
 			concreteTimesharedResource = abstractTimesharedResource.resourceObjects[i]
 
 			#determine speed of this job
-			job["speed"] = concreteTimesharedResource.availableThroughput / definition["timeshared resource"]["require"]
+			job["speed"] = div(concreteTimesharedResource.availableThroughput, definition["timeshared resource"]["require"])
 			for curRequest in definition["resources"]:
-				job["speed"] = min(job["speed"], resolvePath(concreteTimesharedResource, curRequest["path"]).availableThroughput / curRequest["require"])
+				concreteResource = resolvePath(concreteTimesharedResource, curRequest["path"])
+				job["speed"] = min(job["speed"], div(concreteResource.availableThroughput, curRequest["require"]))
 
 			#allocate the resources
 			concreteTimesharedResource.availableThroughput = 0	#model busy waiting
@@ -261,7 +282,7 @@ class Model:
 		stepTime = math.inf
 		for name in self.executableJobs:
 			job = self.executableJobs[name]
-			jobTime = (1 - job["progress"])/job["speed"]
+			jobTime = div(1 - job["progress"], job["speed"])
 			stepTime = min(stepTime, jobTime)
 
 		#advance the simulated time

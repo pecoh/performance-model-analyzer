@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import math
 import sys
 
 def parseArgs():
@@ -141,13 +142,7 @@ class Model:
 			self.jobs[key]["done"] = False
 
 		#sort the jobs into executable and waiting jobs
-		self.executableJobs = dict()
-		self.waitingJobs = dict()
-		for key in self.jobs:
-			if swallowExceptions(lambda: len(self.jobs[key]["require"])):
-				self.waitingJobs.update({key: self.jobs[key]});
-			else:
-				self.executableJobs.update({key: self.jobs[key]});
+		self.classifyJobs()
 
 		#Build the DAG of concrete resource objects, this adds a "resource objects" entry to the timeshared resources,
 		#which is an array of resource description dictionaries.
@@ -155,6 +150,8 @@ class Model:
 		#self.resources.printTree()
 
 		#Scan the job descriptions for paths to timeshared resources, and make all other resource paths relative to those.
+		#Also, find the maximum resource request.
+		self.maxRequest = 0
 		for name in self.definitions:
 			resourceList = swallowExceptions(lambda: self.definitions[name]["resources"])
 			if not resourceList: sys.exit("error: job definition '" + name + "' does not require any resources")
@@ -173,6 +170,7 @@ class Model:
 			del resourceList[timesharedIndex]
 			for i in range(len(resourceList)):
 				resourceList[i]["path"] = relativatePath(referencePath, resourceList[i]["path"])
+				self.maxRequest = max(self.maxRequest, resourceList[i]["require"])
 
 	def createResourceObjects(self, resources: dict, abstractParent, concreteParent):
 		"""Build a DAG of resource objects, each resource object being a dictionary that contains subresources and/or a parent resource ("..").
@@ -230,8 +228,49 @@ class Model:
 
 		return jobs
 
+	def classifyJobs(self):
+		"""Build lists of executable and waiting jobs."""
+		self.executableJobs = dict()
+		self.waitingJobs = dict()
+		for key in self.jobs:
+			#do not consider jobs that are already done
+			if self.jobs[key]["done"]: continue
+
+			#determine if all precondition jobs are done
+			isExecutable = True
+			if swallowExceptions(lambda: len(self.jobs[key]["require"])):
+				for i in range(len(self.jobs[key]["require"])):
+					if not self.jobs[self.jobs[key]["require"][i]]["done"]:
+						isExecutable = False
+						break
+
+			#sort the job into the appropriate class
+			if isExecutable:
+				self.executableJobs.update({key: self.jobs[key]});
+			else:
+				self.waitingJobs.update({key: self.jobs[key]});
+
 	def simulateStep(self):
+		#assign resources to the jobs and calculate their momentary speed
 		self.assignResources(self.executableJobs)
+
+		#determine how long we the jobs and their speeds will remain the same
+		stepTime = math.inf
+		for name in self.executableJobs:
+			job = self.executableJobs[name]
+			jobTime = (1 - job["progress"])/job["speed"]
+			stepTime = min(stepTime, jobTime)
+
+		#advance the simulated time
+		for name in self.executableJobs:
+			job = self.executableJobs[name]
+			job["progress"] += stepTime*job["speed"]
+			if (1-job["progress"])*self.maxRequest < 1:	#Check whether the job is done with taking float precision errors into account.
+				job["progress"] = 1
+				job["done"] = True
+
+		#redetermine the sets of executable/waiting jobs
+		self.classifyJobs()
 
 def main():
 	options = parseArgs()

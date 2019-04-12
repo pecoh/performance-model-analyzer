@@ -140,6 +140,10 @@ assert relativatePath(["foo", "bar", "baz"], ["foo", "bar", "baz", "bim"]) == ["
 
 class Model:
 	def __init__(self, files):
+		self.simulatedTime = 0
+		self.simulationStep = 0
+		self.concreteResources = []
+
 		#read the files
 		modelDescription = dict()
 		for f in files:
@@ -167,7 +171,6 @@ class Model:
 		#Build the DAG of concrete resource objects, this adds a "resource objects" entry to the timeshared resources,
 		#which is an array of resource description dictionaries.
 		self.resources = self.createResourceObjects(self.resources, AbstractResource(None), ResourceObject(None))
-		#self.resources.printTree()
 
 		#Scan the job descriptions for paths to timeshared resources, and make all other resource paths relative to those.
 		#Also, find the maximum resource request.
@@ -192,15 +195,12 @@ class Model:
 				resourceList[i]["path"] = relativatePath(referencePath, resourceList[i]["path"])
 				self.maxRequest = max(self.maxRequest, resourceList[i]["require"])
 
-		self.simulatedTime = 0
-
 	def createResourceObjects(self, resources: dict, abstractParent, concreteParent):
 		"""Build a DAG of resource objects, each resource object being a dictionary that contains subresources and/or a parent resource ("..").
 
 		For real resources, the dictionary object also contains a data member `.throughput`.
 		For each resource with a multiplicity, several equal resource objects will be created.
 		For each timeshared resource, a list of the associated resource objects is created and stored under the key "resource objects"."""
-		self.concreteResources = []
 		for name in resources:
 			curResource = resources[name]
 			multiplicity = swallowExceptions(lambda: curResource["multiplicity"]) or 1
@@ -244,6 +244,7 @@ class Model:
 				job["speed"] = min(job["speed"], div(concreteResource.availableThroughput, curRequest["require"]))
 
 			#allocate the resources
+			print("\tjob '" + name + "', speed = %g"%job["speed"])
 			concreteTimesharedResource.availableThroughput = 0	#model busy waiting
 			for curRequest in definition["resources"]:
 				resolvePath(concreteTimesharedResource, curRequest["path"]).availableThroughput = job["speed"]*curRequest["require"]
@@ -275,6 +276,9 @@ class Model:
 				self.waitingJobs.update({key: self.jobs[key]});
 
 	def simulateStep(self):
+		self.simulationStep += 1
+		print("%gs (step %d):" % (self.simulatedTime, self.simulationStep))
+
 		#assign resources to the jobs and calculate their momentary speed
 		self.assignResources(self.executableJobs)
 
@@ -302,6 +306,7 @@ class Model:
 	def simulate(self):
 		while self.executableJobs:
 			self.simulateStep()
+		print("%gs: done" % self.simulatedTime)
 
 def main():
 	options = parseArgs()

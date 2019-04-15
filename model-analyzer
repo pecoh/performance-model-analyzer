@@ -49,6 +49,22 @@ assert math.isnan(div(0, -0.0))
 assert math.isnan(div(-0.0, 0))
 assert math.isnan(div(-0.0, -0.0))
 
+def colorFormat(formatStr: str, value: float, thresholds: list, colors: list) -> str:
+	"""Format the value into a string and add the appropriate color escape sequence.
+
+	thresholds and colors are synchronous arrays, color[i] is going to be used for all values <= threshold[i]."""
+	color = "0"
+	for i in range(len(thresholds)):
+		color = colors[i]
+		if thresholds[i] >= value: break
+	return "[" + color + "m" +formatStr%value + "[0m"
+
+def colorPercentage(value: float) -> str:
+	"""Wrapper for colorFormat() that highlights 100% red and small values blue.
+
+	value is a number between 0 and 1."""
+	return colorFormat("%6.2f%%", 100*value, [10, 80, 99, math.inf], ["36", "0", "33", "91"])
+
 class ResourceObject:
 	"""A simple data object that contains the variables throughput, availableThroughput, timeshared, and paths.
 	throughput is the capacity of the resource, availableThroughput is the amount of it that is not already committed to a job.
@@ -84,21 +100,64 @@ class AbstractResource:
 	abstract subresources are always reachable from their parent,
 	and the timeshared ones provide a list of resourceObjects, which must be filled by the caller."""
 	def __init__(self, resourceDescription: dict, parent = None, subresourceName = None):
-		if swallowExceptions(lambda: resourceDescription["timeshared"]):
-			self.resourceObjects = list()
+		self.timeshared = swallowExceptions(lambda: resourceDescription["timeshared"])
+		self.resourceObjects = list()
 		self.paths = dict()
 		if parent:
 			self.paths[".."] = parent
 			parent.paths[subresourceName] = self
 
 	def addConcrete(self, concrete: ResourceObject):
-		"""Noop if the resource is not timeshared."""
-		if hasattr(self, "resourceObjects"):
-			self.resourceObjects.append(concrete)
+		self.resourceObjects.append(concrete)
 
-	def hasConcrete(self):
-		"""Check if there are any ResourceObjects connected to this abstract resource."""
-		return swallowExceptions(lambda: len(self.resourceObjects))
+	def isTimeshared(self):
+		return self.timeshared
+
+	def usageStatistic(self):
+		"""Returns a triple with min, mean, and max resource usage expressed as numbers between 0 and 1."""
+		minimum, maximum = math.inf, -math.inf
+		mean, count = 0, 0
+		for concreteResource in self.resourceObjects:
+			if not concreteResource.throughput: continue
+			curUsage = 1 - concreteResource.availableThroughput/concreteResource.throughput
+			minimum = min(minimum, curUsage)
+			maximum = max(maximum, curUsage)
+			mean, count = (mean*count + curUsage)/(count + 1), count + 1
+		return minimum, mean, maximum
+
+	def usageTable(self, table: list, name: str, indentation = 0):
+		"""Add a tuple of one string and three numbers to the table for each resource, recursively.
+
+		The order of the tuple fields is this:
+		(name: str, min, mean, max)
+		
+		Don't use this directly, use printUsageTable() on the root resource instead."""
+		minimum, mean, maximum = self.usageStatistic()
+		table.append(("  "*indentation + "└─ " + name, minimum, mean, maximum))
+		for name in self.paths:
+			if name == "..": continue
+			self.paths[name].usageTable(table, name, indentation + 1)
+
+	def printUsageTable(self, indentationPrefix):
+		"""Print a table with the usage statistics of all resources."""
+		#Build the table
+		table = list()
+		for name in self.paths:
+			if name == "..": continue
+			self.paths[name].usageTable(table, name)
+
+		#Get the size of the name column
+		nameWidth = 0
+		for name, *rest in table:
+			nameWidth = max(nameWidth, len(name))
+
+		#Print the table
+		for name, minimum, mean, maximum in table:
+			print(indentationPrefix + name + " "*(nameWidth - len(name)) + " | ", end="")
+			if minimum > 100:
+				print()
+			else:
+				print(colorPercentage(minimum) + "   " + colorPercentage(mean) + "   " + colorPercentage(maximum))
 
 	def printTree(self, indentation = 0):
 		"""For debugging purposes, only."""
@@ -178,7 +237,7 @@ class Model:
 		for name in self.definitions:
 			resourceList = swallowExceptions(lambda: self.definitions[name]["resources"])
 			if not resourceList: sys.exit("error: job definition '" + name + "' does not require any resources")
-			timesharedIndices = [i for i in range(len(resourceList)) if swallowExceptions(lambda: resolvePath(self.resources, resourceList[i]["path"]).hasConcrete())]
+			timesharedIndices = [i for i in range(len(resourceList)) if swallowExceptions(lambda: resolvePath(self.resources, resourceList[i]["path"]).isTimeshared())]
 			if len(timesharedIndices) != 1:
 				print("error: job definition '" + name + "' does not name exactly one timeshared resource")
 				print("found %d paths to timeshared resources:"%len(timesharedIndices))
@@ -278,9 +337,14 @@ class Model:
 	def simulateStep(self):
 		self.simulationStep += 1
 		print("%gs (step %d):" % (self.simulatedTime, self.simulationStep))
+		print()
 
 		#assign resources to the jobs and calculate their momentary speed
 		self.assignResources(self.executableJobs)
+		print()
+		print("\tresource usage:")
+		self.resources.printUsageTable("\t  ")
+		print()
 
 		#determine how long we the jobs and their speeds will remain the same
 		stepTime = math.inf

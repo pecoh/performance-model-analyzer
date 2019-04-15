@@ -133,7 +133,7 @@ class AbstractResource:
 		
 		Don't use this directly, use printUsageTable() on the root resource instead."""
 		minimum, mean, maximum = self.usageStatistic()
-		table.append(("  "*indentation + "└─ " + name, minimum, mean, maximum))
+		table.append(("  "*indentation + " └─ " + name, minimum, mean, maximum))
 		for name in self.paths:
 			if name == "..": continue
 			self.paths[name].usageTable(table, name, indentation + 1)
@@ -147,11 +147,15 @@ class AbstractResource:
 			self.paths[name].usageTable(table, name)
 
 		#Get the size of the name column
-		nameWidth = 0
+		nameTitle = "resource usage"
+		nameWidth = len(nameTitle)
 		for name, *rest in table:
 			nameWidth = max(nameWidth, len(name))
 
 		#Print the table
+		titleRow = nameTitle + " "*(nameWidth - len(nameTitle)) + " |   min       mean      max  "
+		print(indentationPrefix + titleRow)
+		print(indentationPrefix + "-"*len(titleRow))
 		for name, minimum, mean, maximum in table:
 			print(indentationPrefix + name + " "*(nameWidth - len(name)) + " | ", end="")
 			if minimum > 100:
@@ -342,8 +346,7 @@ class Model:
 		#assign resources to the jobs and calculate their momentary speed
 		self.assignResources(self.executableJobs)
 		print()
-		print("\tresource usage:")
-		self.resources.printUsageTable("\t  ")
+		self.resources.printUsageTable("\t")
 		print()
 
 		#determine how long we the jobs and their speeds will remain the same

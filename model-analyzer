@@ -310,7 +310,7 @@ class Model:
 			print("\tjob '" + name + "', speed = %g"%job["speed"])
 			concreteTimesharedResource.availableThroughput = 0	#model busy waiting
 			for curRequest in definition["resources"]:
-				resolvePath(concreteTimesharedResource, curRequest["path"]).availableThroughput = job["speed"]*curRequest["require"]
+				resolvePath(concreteTimesharedResource, curRequest["path"]).availableThroughput -= job["speed"]*curRequest["require"]
 
 			#debug output
 

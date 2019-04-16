@@ -11,11 +11,11 @@
 							"timeshared": true,
 							"throughput": 3e9
 						},
-						"L1 Cache": { "throughput": 10e9 }
+						"L1 Cache": { "throughput": 64e9 }
 					}
 				},
-				"LL Cache": { "throughput": 15e9 },
-				"memory bus": { "throughput": 10e9 }
+				"LL Cache": { "throughput": 6.4e9 },
+				"memory bus": { "throughput": 25.6e9 }
 			}
 		},
 		"network": { "throughput": 2.5e9 },

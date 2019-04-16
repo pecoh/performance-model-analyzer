@@ -298,7 +298,7 @@ class Model:
 			for i in range(len(abstractTimesharedResource.resourceObjects)):
 				if abstractTimesharedResource.resourceObjects[i].availableThroughput > curThroughput:
 					allocationIndex, curThroughput = i, abstractTimesharedResource.resourceObjects[i].availableThroughput
-			concreteTimesharedResource = abstractTimesharedResource.resourceObjects[i]
+			concreteTimesharedResource = abstractTimesharedResource.resourceObjects[allocationIndex]
 
 			#determine speed of this job
 			job["speed"] = div(concreteTimesharedResource.availableThroughput, definition["timeshared resource"]["require"])

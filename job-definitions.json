@@ -67,6 +67,11 @@
 				{ "path": ["CPU", "core", "L1 Cache"], "require": 1.6e9},
 				{ "path": ["CPU", "core", "thread"], "require": 400e6}
 			]
+		},
+		"noop": {
+			"resources": [
+				{ "path": ["CPU", "core", "thread"], "require": 1}
+			]
 		}
 	}
 }

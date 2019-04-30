@@ -38,11 +38,15 @@ Top level is an object with members:
 
       * multiplicity: number (integer giving the number of identical jobs that are created)
 
+        **unimplemented**
+
         default: 1
 
         This duplicates the work (weak scaling).
 
       * split factor: number (integer giving the number of identical jobs that are created)
+
+        **unimplemented**
 
         default: 1
 
@@ -58,6 +62,8 @@ Top level is an object with members:
         prerequisites with a multiplicity are only considered to be fulfilled when all the duplicate jobs have finished.
 
       * pipe: dictionary with members:
+
+        **unimplemented**
 
           * input: string (name of job from which data is piped)
 

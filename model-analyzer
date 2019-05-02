@@ -8,6 +8,7 @@ import sys
 def parseArgs():
 	"""Define the options of the model-analyzes, parse the command line, and return the options object."""
 	optionsParser = argparse.ArgumentParser()
+	optionsParser.add_argument('-q', '--quiet', default = False, action = 'store_true', help = "suppress output except for the total time")
 	optionsParser.add_argument('files', type=argparse.FileType('r'), nargs='+', help="one or more files describing the jobs and machine model")
 
 	return optionsParser.parse_args()
@@ -283,7 +284,7 @@ class Model:
 
 		return abstractParent
 
-	def assignResources(self, jobs: dict) -> dict:
+	def assignResources(self, jobs: dict, verbosity: int) -> dict:
 		"""For each job, assign a key "speed" which indicates how much progress the job has per second.
 
 		Returns the given dictionary with the updated jobs.
@@ -307,7 +308,7 @@ class Model:
 				job["speed"] = min(job["speed"], div(concreteResource.availableThroughput, curRequest["require"]))
 
 			#allocate the resources
-			print("\tjob '" + name + "', speed = %g"%job["speed"])
+			if verbosity >= 1: print("\tjob '" + name + "', speed = %g"%job["speed"])
 			concreteTimesharedResource.availableThroughput = 0	#model busy waiting
 			for curRequest in definition["resources"]:
 				resolvePath(concreteTimesharedResource, curRequest["path"]).availableThroughput -= job["speed"]*curRequest["require"]
@@ -338,16 +339,18 @@ class Model:
 			else:
 				self.waitingJobs.update({key: self.jobs[key]});
 
-	def simulateStep(self):
+	def simulateStep(self, verbosity: int):
 		self.simulationStep += 1
-		print("%gs (step %d):" % (self.simulatedTime, self.simulationStep))
-		print()
+		if verbosity >= 1:
+			print("%gs (step %d):" % (self.simulatedTime, self.simulationStep))
+			print()
 
 		#assign resources to the jobs and calculate their momentary speed
-		self.assignResources(self.executableJobs)
-		print()
-		self.resources.printUsageTable("\t")
-		print()
+		self.assignResources(self.executableJobs, verbosity)
+		if verbosity >= 1:
+			print()
+			self.resources.printUsageTable("\t")
+			print()
 
 		#determine how long we the jobs and their speeds will remain the same
 		stepTime = math.inf
@@ -370,14 +373,16 @@ class Model:
 			resource.availableThroughput = resource.throughput
 		self.classifyJobs()
 
-	def simulate(self):
+	def simulate(self, verbosity: int):
 		while self.executableJobs:
-			self.simulateStep()
+			self.simulateStep(verbosity)
 		print("%gs: done" % self.simulatedTime)
 
 def main():
 	options = parseArgs()
 	model = Model(options.files)
-	model.simulate()
+	verbosity = 1
+	if options.quiet: verbosity = 0
+	model.simulate(verbosity)
 
 main()

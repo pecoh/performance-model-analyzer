@@ -216,12 +216,12 @@ class Model:
 		#check for completeness
 		if throws(lambda: modelDescription["resources"]):
 			sys.exit("error: no resources defined")
-		if throws(lambda: modelDescription["job definitions"]):
+		if throws(lambda: modelDescription["operations"]):
 			sys.exit("error: no job descriptions defined")
 		if throws(lambda: modelDescription["jobs"]):
 			sys.exit("error: no jobs found")
 		self.resources = modelDescription["resources"]
-		self.definitions = modelDescription["job definitions"]
+		self.definitions = modelDescription["operations"]
 		self.jobs = modelDescription["jobs"]
 
 		#add progress vars to the jobs

@@ -24,7 +24,7 @@ Top level is an object with members:
 
         default: empty
 
-  * job definitions: dictionary of objects with members:
+  * operations: dictionary of objects with members:
 
       * resources: array of objects with members:
 
@@ -34,7 +34,7 @@ Top level is an object with members:
 
   * jobs: dictionary of objects with members:
 
-      * name: string (name of a job definition)
+      * name: string (name of an operation)
 
       * multiplicity: number (integer giving the number of identical jobs that are created)
 
@@ -52,8 +52,8 @@ Top level is an object with members:
 
         This splits the work across the given number of identical jobs (strong scaling).
         "multiplicity" and "split factor" can be combined, so if "multiplicity" == 3 and "split factor" == 4,
-        then 12 jobs are created, each with a quarter of the resource requirements given in the job definition,
-        so that three times the resources given in the job definition are required in total.
+        then 12 jobs are created, each with a quarter of the resource requirements given in the operation,
+        so that three times the resources given in the operation are required in total.
 
       * require: array of strings (the names of jobs that need to finish before this job can be started.
 
@@ -102,7 +102,7 @@ Example data:
 		"network": { "throughput": 2.5e9 }
 	},
 
-	"job definitions": {
+	"operations": {
 		"read config": {
 			"resources": [
 				{ "path": ["network"], "require": 50e3},

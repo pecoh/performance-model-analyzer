@@ -241,10 +241,10 @@ class Model:
 		self.maxRequest = 0
 		for name in self.definitions:
 			resourceList = swallowExceptions(lambda: self.definitions[name]["resources"])
-			if not resourceList: sys.exit("error: job definition '" + name + "' does not require any resources")
+			if not resourceList: sys.exit("error: operation '" + name + "' does not require any resources")
 			timesharedIndices = [i for i in range(len(resourceList)) if swallowExceptions(lambda: resolvePath(self.resources, resourceList[i]["path"]).isTimeshared())]
 			if len(timesharedIndices) != 1:
-				print("error: job definition '" + name + "' does not name exactly one timeshared resource")
+				print("error: operation '" + name + "' does not name exactly one timeshared resource")
 				print("found %d paths to timeshared resources:"%len(timesharedIndices))
 				for i in timesharedIndices:
 					print("\t" + "/".join(resourceList[i]["path"]))
@@ -291,10 +291,11 @@ class Model:
 		Current implementation uses a quite daft, naive greedy algorithm."""
 		for name in jobs:
 			job = jobs[name]
-			definition = self.definitions[job["name"]]
+			operationName = job["name"]
+			operation = self.definitions[operationName]
 
 			#select an instance of the timeshared resource
-			abstractTimesharedResource = resolvePath(self.resources, definition["timeshared resource"]["path"])
+			abstractTimesharedResource = resolvePath(self.resources, operation["timeshared resource"]["path"])
 			allocationIndex, curThroughput = 0, -1
 			for i in range(len(abstractTimesharedResource.resourceObjects)):
 				if abstractTimesharedResource.resourceObjects[i].availableThroughput > curThroughput:
@@ -302,15 +303,15 @@ class Model:
 			concreteTimesharedResource = abstractTimesharedResource.resourceObjects[allocationIndex]
 
 			#determine speed of this job
-			job["speed"] = div(concreteTimesharedResource.availableThroughput, definition["timeshared resource"]["require"])
-			for curRequest in definition["resources"]:
+			job["speed"] = div(concreteTimesharedResource.availableThroughput, operation["timeshared resource"]["require"])
+			for curRequest in operation["resources"]:
 				concreteResource = resolvePath(concreteTimesharedResource, curRequest["path"])
 				job["speed"] = min(job["speed"], div(concreteResource.availableThroughput, curRequest["require"]))
 
 			#allocate the resources
-			if verbosity >= 1: print("\tjob '" + name + "', speed = %g"%job["speed"])
+			if verbosity >= 1: print("\tjob '" + name + "' (" + operationName + "), speed = %g"%job["speed"])
 			concreteTimesharedResource.availableThroughput = 0	#model busy waiting
-			for curRequest in definition["resources"]:
+			for curRequest in operation["resources"]:
 				resolvePath(concreteTimesharedResource, curRequest["path"]).availableThroughput -= job["speed"]*curRequest["require"]
 
 			#debug output

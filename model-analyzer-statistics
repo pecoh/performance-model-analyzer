@@ -1,0 +1,45 @@
+#! /usr/bin/env bash
+#
+# model-analyzer-statistics <repetitions> <command> <args..>
+#
+# Executes `<command> -q -d <args...>` once, and `<command> -q -r <args...>` <repetitions> times.
+# Prints a line of the form "deterministic: %fs, mean: %fs, stdev: %fs" where mean and stdev are calculated from the randomized invocations, only.
+
+repetitions="$1"
+script="$2"
+shift 2
+
+deterministicTime="$($script -q -d "$@")"
+randomTimes="$(
+	for ((i = 0; i < repetitions; i++)) ; do
+		$script -q -r "$@"
+	done)"
+
+mean="$(
+	bc <<-EOF
+		scale = 10
+		($(echo $randomTimes | tr ' ' '+'))/$repetitions
+	EOF
+)"
+
+meanSquare="$(
+	bc <<-EOF
+		scale = 10
+		($(for curTime in $randomTimes ; do
+			echo -n "$curTime*$curTime + "
+		done
+		echo 0))/$repetitions
+	EOF
+)"
+
+#The renormalization from $repetitions-1 to $repetitions turns the variance of the sample into the expectation value of the variance of an infinite sample.
+variance="$(
+	bc <<-EOF
+		scale = 10
+		($meanSquare - $mean*$mean)*$repetitions/($repetitions - 1)
+	EOF
+)"
+
+stdev="$(bc -l <<<"e(0.5*l($variance))")"
+
+printf "deterministic: %fs, mean: %fs, stdev: %fs\n" $deterministicTime $mean $stdev

@@ -392,7 +392,10 @@ class Model:
 	def simulate(self, verbosity: int):
 		while self.executableJobs:
 			self.simulateStep(verbosity)
-		print("%gs: done" % self.simulatedTime)
+		if verbosity >= 1:
+			print("%gs: done" % self.simulatedTime)
+		else:
+			print("%g" % self.simulatedTime)
 
 def main():
 	options = parseArgs()

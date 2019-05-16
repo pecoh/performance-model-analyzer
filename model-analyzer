@@ -1,14 +1,19 @@
 #! /usr/bin/env python3
 
 import argparse
+import collections
 import json
 import math
+import random
 import sys
 
 def parseArgs():
 	"""Define the options of the model-analyzes, parse the command line, and return the options object."""
 	optionsParser = argparse.ArgumentParser()
 	optionsParser.add_argument('-q', '--quiet', default = False, action = 'store_true', help = "suppress output except for the total time")
+	optionsParser.add_argument('-r', '--randomize', dest = 'randomize', action = 'store_true', help = "randomize the order in which the jobs, operations and resources are considered (opposite of --deterministic)")
+	optionsParser.add_argument('-d', '--deterministic', dest = 'randomize', action = 'store_false', help = "consider the jobs, operations and resources deterministically (sorted by their respective name, opposite of --randomize)")
+	optionsParser.set_defaults(randomize = False)
 	optionsParser.add_argument('files', type=argparse.FileType('r'), nargs='+', help="one or more files describing the jobs and machine model")
 
 	return optionsParser.parse_args()
@@ -72,11 +77,11 @@ class ResourceObject:
 	timeshared has the same meaning as the flag in the data model, and is always present.
 	paths is a dictionary of child resources, which may also contain a ".." entry for the parent resource.
 	Subresources are only reachable from their parent if they have a multiplicity of 1."""
-	def __init__(self, resourceDescription: dict, parent = None, subresourceName = None):
+	def __init__(self, resourceDescription: collections.OrderedDict, parent = None, subresourceName = None):
 		self.throughput = swallowExceptions(lambda: resourceDescription["throughput"])
 		self.availableThroughput = self.throughput
 		self.timeshared = swallowExceptions(lambda: resourceDescription["timeshared"]) or False
-		self.paths = dict()
+		self.paths = collections.OrderedDict()
 		if parent:
 			self.paths[".."] = parent
 			if not swallowExceptions(lambda: resourceDescription["multiplicity"] != 1):
@@ -100,10 +105,10 @@ class AbstractResource:
 	Unlike ResourceObject, these do not store throughputs,
 	abstract subresources are always reachable from their parent,
 	and the timeshared ones provide a list of resourceObjects, which must be filled by the caller."""
-	def __init__(self, resourceDescription: dict, parent = None, subresourceName = None):
+	def __init__(self, resourceDescription: collections.OrderedDict, parent = None, subresourceName = None):
 		self.timeshared = swallowExceptions(lambda: resourceDescription["timeshared"])
 		self.resourceObjects = list()
-		self.paths = dict()
+		self.paths = collections.OrderedDict()
 		if parent:
 			self.paths[".."] = parent
 			parent.paths[subresourceName] = self
@@ -202,8 +207,18 @@ assert relativatePath(["foo", "bar", "baz"], ["foo", "bim"]) == ["..", "..", "bi
 assert relativatePath(["foo", "bar", "baz"], ["foo", "bar", "bim"]) == ["..", "bim"]
 assert relativatePath(["foo", "bar", "baz"], ["foo", "bar", "baz", "bim"]) == ["bim"]
 
+def makeOrderedDict(unordered: dict, randomize: bool = False) -> collections.OrderedDict:
+	"""Turn an unordered dict object into an OrderedDict.
+
+	This can either be done deterministically, sorting the entries by their keys, or entirely randomly."""
+	if randomize:
+		key = lambda item: random.random()
+	else:
+		key = lambda item: item[0]
+	return collections.OrderedDict(sorted(unordered.items(), key = key))
+
 class Model:
-	def __init__(self, files):
+	def __init__(self, randomize: bool, files):
 		self.simulatedTime = 0
 		self.simulationStep = 0
 		self.concreteResources = []
@@ -220,9 +235,9 @@ class Model:
 			sys.exit("error: no job descriptions defined")
 		if throws(lambda: modelDescription["jobs"]):
 			sys.exit("error: no jobs found")
-		self.resources = modelDescription["resources"]
-		self.definitions = modelDescription["operations"]
-		self.jobs = modelDescription["jobs"]
+		self.resources = makeOrderedDict(modelDescription["resources"], randomize)
+		self.definitions = makeOrderedDict(modelDescription["operations"], randomize)
+		self.jobs = makeOrderedDict(modelDescription["jobs"], randomize)
 
 		#add progress vars to the jobs
 		for key in self.jobs:
@@ -259,7 +274,7 @@ class Model:
 				resourceList[i]["path"] = relativatePath(referencePath, resourceList[i]["path"])
 				self.maxRequest = max(self.maxRequest, resourceList[i]["require"])
 
-	def createResourceObjects(self, resources: dict, abstractParent, concreteParent):
+	def createResourceObjects(self, resources: collections.OrderedDict, abstractParent, concreteParent):
 		"""Build a DAG of resource objects, each resource object being a dictionary that contains subresources and/or a parent resource ("..").
 
 		For real resources, the dictionary object also contains a data member `.throughput`.
@@ -284,7 +299,7 @@ class Model:
 
 		return abstractParent
 
-	def assignResources(self, jobs: dict, verbosity: int) -> dict:
+	def assignResources(self, jobs: collections.OrderedDict, verbosity: int) -> collections.OrderedDict:
 		"""For each job, assign a key "speed" which indicates how much progress the job has per second.
 
 		Returns the given dictionary with the updated jobs.
@@ -320,8 +335,8 @@ class Model:
 
 	def classifyJobs(self):
 		"""Build lists of executable and waiting jobs."""
-		self.executableJobs = dict()
-		self.waitingJobs = dict()
+		self.executableJobs = collections.OrderedDict()
+		self.waitingJobs = collections.OrderedDict()
 		for key in self.jobs:
 			#do not consider jobs that are already done
 			if self.jobs[key]["done"]: continue
@@ -381,7 +396,7 @@ class Model:
 
 def main():
 	options = parseArgs()
-	model = Model(options.files)
+	model = Model(options.randomize, options.files)
 	verbosity = 1
 	if options.quiet: verbosity = 0
 	model.simulate(verbosity)

@@ -1,16 +1,16 @@
 {
 	"jobs": {
-		"step 1": { "name": "load input" },
-		"step 2": { "name": "decompress", "require": [ "step 1" ]},
-		"step 3": { "name": "decode", "require": [ "step 2" ]},
-		"step 4": { "name": "encode", "require": [ "step 3" ]},
-		"step 5": { "name": "write output", "require": [ "step 4" ]},
+		"step 01": { "name": "load input" },
+		"step 02": { "name": "decompress", "require": [ "step 01" ]},
+		"step 03": { "name": "decode", "require": [ "step 02" ]},
+		"step 04": { "name": "encode", "require": [ "step 03" ]},
+		"step 05": { "name": "write output", "require": [ "step 04" ]},
 
-		"step 6": { "name": "load input", "require": [ "step 5" ] },
-		"step 7": { "name": "decompress", "require": [ "step 6" ]},
-		"step 8": { "name": "decode", "require": [ "step 7" ]},
-		"step 9": { "name": "encode", "require": [ "step 8" ]},
-		"step 10": { "name": "write output", "require": [ "step 9" ]},
+		"step 06": { "name": "load input", "require": [ "step 05" ] },
+		"step 07": { "name": "decompress", "require": [ "step 06" ]},
+		"step 08": { "name": "decode", "require": [ "step 07" ]},
+		"step 09": { "name": "encode", "require": [ "step 08" ]},
+		"step 10": { "name": "write output", "require": [ "step 09" ]},
 
 		"step 11": { "name": "load input", "require": [ "step 10" ] },
 		"step 12": { "name": "decompress", "require": [ "step 11" ]},

@@ -1,41 +1,41 @@
 {
 	"jobs": {
-		"step 1": { "name": "load input" },
-		"step 2": { "name": "load input" },
-		"step 3": { "name": "load input" },
-		"step 4": { "name": "load input" },
-		"step 5": { "name": "load input" },
+		"step 01": { "name": "load input" },
+		"step 02": { "name": "load input" },
+		"step 03": { "name": "load input" },
+		"step 04": { "name": "load input" },
+		"step 05": { "name": "load input" },
 
-		"sync 1": { "name": "noop", "require": [ "step 1", "step 2", "step 3", "step 4", "step 5" ]},
+		"sync 01": { "name": "noop", "require": [ "step 01", "step 02", "step 03", "step 04", "step 05" ]},
 
-		"step 6": { "name": "decompress", "require": [ "sync 1" ]},
-		"step 7": { "name": "decompress", "require": [ "sync 1" ]},
-		"step 8": { "name": "decompress", "require": [ "sync 1" ]},
-		"step 9": { "name": "decompress", "require": [ "sync 1" ]},
-		"step 10": { "name": "decompress", "require": [ "sync 1" ]},
+		"step 06": { "name": "decompress", "require": [ "sync 01" ]},
+		"step 07": { "name": "decompress", "require": [ "sync 01" ]},
+		"step 08": { "name": "decompress", "require": [ "sync 01" ]},
+		"step 09": { "name": "decompress", "require": [ "sync 01" ]},
+		"step 10": { "name": "decompress", "require": [ "sync 01" ]},
 
-		"sync 2": { "name": "noop", "require": [ "step 6", "step 7", "step 8", "step 9", "step 10" ]},
+		"sync 02": { "name": "noop", "require": [ "step 06", "step 07", "step 08", "step 09", "step 10" ]},
 
-		"step 11": { "name": "decode", "require": [ "sync 2" ]},
-		"step 12": { "name": "decode", "require": [ "sync 2" ]},
-		"step 13": { "name": "decode", "require": [ "sync 2" ]},
-		"step 14": { "name": "decode", "require": [ "sync 2" ]},
-		"step 15": { "name": "decode", "require": [ "sync 2" ]},
+		"step 11": { "name": "decode", "require": [ "sync 02" ]},
+		"step 12": { "name": "decode", "require": [ "sync 02" ]},
+		"step 13": { "name": "decode", "require": [ "sync 02" ]},
+		"step 14": { "name": "decode", "require": [ "sync 02" ]},
+		"step 15": { "name": "decode", "require": [ "sync 02" ]},
 
-		"sync 3": { "name": "noop", "require": [ "step 11", "step 12", "step 13", "step 14", "step 15" ]},
+		"sync 03": { "name": "noop", "require": [ "step 11", "step 12", "step 13", "step 14", "step 15" ]},
 
-		"step 16": { "name": "encode", "require": [ "sync 3" ]},
-		"step 17": { "name": "encode", "require": [ "sync 3" ]},
-		"step 18": { "name": "encode", "require": [ "sync 3" ]},
-		"step 19": { "name": "encode", "require": [ "sync 3" ]},
-		"step 20": { "name": "encode", "require": [ "sync 3" ]},
+		"step 16": { "name": "encode", "require": [ "sync 03" ]},
+		"step 17": { "name": "encode", "require": [ "sync 03" ]},
+		"step 18": { "name": "encode", "require": [ "sync 03" ]},
+		"step 19": { "name": "encode", "require": [ "sync 03" ]},
+		"step 20": { "name": "encode", "require": [ "sync 03" ]},
 
-		"sync 4": { "name": "noop", "require": [ "step 16", "step 17", "step 18", "step 19", "step 20" ]},
+		"sync 04": { "name": "noop", "require": [ "step 16", "step 17", "step 18", "step 19", "step 20" ]},
 
-		"step 21": { "name": "write output", "require": [ "sync 4" ]},
-		"step 22": { "name": "write output", "require": [ "sync 4" ]},
-		"step 23": { "name": "write output", "require": [ "sync 4" ]},
-		"step 24": { "name": "write output", "require": [ "sync 4" ]},
-		"step 25": { "name": "write output", "require": [ "sync 4" ]}
+		"step 21": { "name": "write output", "require": [ "sync 04" ]},
+		"step 22": { "name": "write output", "require": [ "sync 04" ]},
+		"step 23": { "name": "write output", "require": [ "sync 04" ]},
+		"step 24": { "name": "write output", "require": [ "sync 04" ]},
+		"step 25": { "name": "write output", "require": [ "sync 04" ]}
 	}
 }
